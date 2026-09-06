@@ -118,6 +118,8 @@ export default function Settings({ toast }: { toast: (m: string) => void }) {
   const { state, dispatch } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [backupText, setBackupText] = useState<string | null>(null);
+  const [pasteText, setPasteText] = useState('');
 
   const doExport = () => {
     const blob = new Blob([exportJSON(state)], { type: 'application/json' });
@@ -129,13 +131,25 @@ export default function Settings({ toast }: { toast: (m: string) => void }) {
     URL.revokeObjectURL(url);
   };
 
-  const doImport = async (file: File) => {
+  const importText = (text: string) => {
     try {
-      const text = await file.text();
       dispatch({ type: 'import', state: importJSON(text) });
+      setPasteText('');
       toast('Imported');
     } catch {
-      toast('Import failed');
+      toast('Import failed: not an Elliod backup');
+    }
+  };
+
+  const doImport = async (file: File) => importText(await file.text());
+
+  const copyBackup = async () => {
+    const text = exportJSON(state);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Backup copied');
+    } catch {
+      setBackupText(text);
     }
   };
 
@@ -151,10 +165,23 @@ export default function Settings({ toast }: { toast: (m: string) => void }) {
       <div className="card stack">
         <h3>Data</h3>
         <small>{Object.keys(state.logs).length} session logs · {state.weights.length} weigh-ins. Stored only in this browser — export a backup now and then.</small>
-        <div className="row">
-          <button onClick={doExport}>Export JSON</button>
-          <button onClick={() => fileRef.current?.click()}>Import JSON</button>
+        <div className="row wrap">
+          <button onClick={doExport}>Download backup</button>
+          <button onClick={copyBackup}>Copy backup</button>
+          <button onClick={() => fileRef.current?.click()}>Import file</button>
           <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])} />
+        </div>
+        {backupText !== null && (
+          <div>
+            <label>Clipboard unavailable — select all and copy this</label>
+            <textarea rows={4} readOnly value={backupText} onFocus={(e) => e.target.select()} />
+            <button className="small ghost" onClick={() => setBackupText(null)}>Hide</button>
+          </div>
+        )}
+        <div>
+          <label>Paste a backup to restore</label>
+          <textarea rows={2} value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder='{"version":1,...}' />
+          <button className="small" disabled={!pasteText.trim()} onClick={() => importText(pasteText)} style={{ marginTop: '.4rem' }}>Restore from pasted text</button>
         </div>
         {!confirmReset ? (
           <button className="danger" onClick={() => setConfirmReset(true)}>Reset everything</button>

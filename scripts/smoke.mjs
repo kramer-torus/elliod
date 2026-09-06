@@ -66,7 +66,7 @@ await page.click('nav button:has-text("Guide")');
 await page.waitForSelector('text=The honest trade-off');
 await page.screenshot({ path: `${out}/07-guide.png`, fullPage: true });
 await page.click('nav button:has-text("Settings")');
-await page.waitForSelector('text=Export JSON');
+await page.waitForSelector("text=Download backup");
 await page.screenshot({ path: `${out}/08-settings.png`, fullPage: true });
 // persistence: reload and check the log survived
 await page.goto('http://localhost:4173/#/today');
