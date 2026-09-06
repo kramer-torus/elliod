@@ -33,8 +33,16 @@ npm run build      # static site in dist/
 npm run preview    # serve dist/ on http://localhost:4173
 ```
 
-Deploy `dist/` to any static host (GitHub Pages works: `base` is relative).
-Open it on your phone and use "Add to Home Screen".
+## Deploy
+
+`.github/workflows/deploy.yml` runs the tests, builds, and publishes `dist/`
+to the `gh-pages` branch on every push to `main` (or on manual dispatch).
+GitHub Pages serves that branch at https://kramer-torus.github.io/elliod/.
+If the site 404s, enable it once: repo **Settings → Pages → Source: Deploy
+from a branch → `gh-pages` / root**.
+
+On the phone, open the URL and use "Add to Home Screen" (iOS Safari: Share
+menu; Android Chrome: menu → Install app). It runs offline after that.
 
 Browser smoke test (needs a Chromium binary; run `npm run preview` first):
 
