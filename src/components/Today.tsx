@@ -4,6 +4,7 @@ import { toISODate, weekForDate } from '../lib/plan';
 import { targetsFor, calorieAdjustment } from '../lib/nutrition';
 import { weeklyTrend, adherence } from '../lib/progression';
 import { SessionCard, fmtDate, WEEKDAYS } from './common';
+import { parseISODate } from '../lib/plan';
 import type { Route } from '../hooks';
 
 export default function Today({ navigate, toast }: { navigate: (r: Route) => void; toast: (m: string) => void }) {
@@ -22,6 +23,8 @@ export default function Today({ navigate, toast }: { navigate: (r: Route) => voi
     : null;
   const adh = plan ? adherence(state, plan, today) : { done: 0, planned: 0 };
   const todayWeight = state.weights.find((w) => w.date === today);
+  const race = profile.race;
+  const daysToRace = race ? Math.round((parseISODate(race.date).getTime() - parseISODate(today).getTime()) / 86400000) : null;
 
   const logWeight = () => {
     const v = Number(kg);
@@ -44,8 +47,11 @@ export default function Today({ navigate, toast }: { navigate: (r: Route) => voi
           <h1>{fmtDate(today, { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
           {week ? (
             <div className="row wrap" style={{ gap: '.4rem' }}>
-              <span className="pill phase">{week.phase.name} · week {week.index}/14</span>
-              {week.isDeload && <span className="pill deload">Deload</span>}
+              <span className="pill phase">{week.phase.name} · {week.blockWeek ? `block week ${week.blockWeek}/14` : `week ${week.phaseWeek}/${week.phase.weeks}`}</span>
+              {week.isDeload && week.phase.key !== 'raceprep' && <span className="pill deload">Deload</span>}
+              {daysToRace !== null && daysToRace >= 0 && daysToRace <= 28 && (
+                <span className="pill run">{daysToRace === 0 ? 'Race day' : `${race!.name} in ${daysToRace} day${daysToRace === 1 ? '' : 's'}`}</span>
+              )}
             </div>
           ) : (
             <small>Outside the plan window.</small>

@@ -13,6 +13,8 @@ export const DEFAULT_PROFILE: Profile = {
   targetWeightKg: 75,
   dailyDeficitKcal: 400,
   optionalRun: false,
+  // Applies to installs that have not yet stored a race decision (migrate() fills missing keys).
+  race: { name: 'Melbourne Marathon', date: '2026-10-11', distanceKm: 42.2 },
 };
 
 export const EMPTY_STATE: AppState = { version: 1, profile: null, logs: {}, weights: [] };

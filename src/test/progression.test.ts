@@ -60,7 +60,7 @@ describe('weight trend', () => {
 });
 
 describe('volume and adherence', () => {
-  const plan = buildPlan({ ...DEFAULT_PROFILE, startDate: '2026-09-07' });
+  const plan = buildPlan({ ...DEFAULT_PROFILE, startDate: '2026-09-07', race: null });
   it('sums actual km per week and counts adherence', () => {
     const state: AppState = {
       ...EMPTY_STATE,
@@ -84,5 +84,18 @@ describe('storage', () => {
     expect(back.weights).toHaveLength(1);
     expect(migrate({}).profile).toBeNull();
     expect(() => importJSON('null')).toThrow();
+  });
+});
+
+describe('race-prep nutrition and migration', () => {
+  it('removes the deficit during race prep', async () => {
+    const { targetsFor } = await import('../lib/nutrition');
+    const t = targetsFor(DEFAULT_PROFILE, 80, 'raceprep', false, 40, 3);
+    expect(t.target).toBe(t.maintenance);
+  });
+  it('fills a missing race key from defaults but respects an explicit null', () => {
+    const { race: _r, ...noRace } = DEFAULT_PROFILE;
+    expect(migrate({ profile: noRace as typeof DEFAULT_PROFILE }).profile?.race?.name).toBe('Melbourne Marathon');
+    expect(migrate({ profile: { ...DEFAULT_PROFILE, race: null } }).profile?.race).toBeNull();
   });
 });

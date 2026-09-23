@@ -49,6 +49,9 @@ export function targetsFor(
   if (phase === 'recovery') {
     deficit = 0;
     note = 'Post-marathon recovery: eat at maintenance. Repair first, cut later.';
+  } else if (phase === 'raceprep') {
+    deficit = 0;
+    note = 'Race prep: no deficit. Eat at maintenance; carb-load Thursday to Saturday of race week (8–10 g carbs per kg).';
   } else if (isDeload) {
     deficit = Math.min(deficit, 200);
     note = 'Deload week: ease the deficit so you actually recover.';

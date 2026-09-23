@@ -39,7 +39,7 @@ export function SessionCard({ session, onOpen }: { session: Session; onOpen?: ()
   const { state } = useApp();
   const log = state.logs[session.id];
   const done = !!log?.completed;
-  const kindLabel = session.kind === 'run' ? (session.optional ? 'Optional run' : 'Run') : session.kind === 'lift' ? 'Strength' : 'Rest';
+  const kindLabel = session.kind === 'run' ? (session.type === 'race' ? 'Race' : session.optional ? 'Optional run' : 'Run') : session.kind === 'lift' ? 'Strength' : 'Rest';
   return (
     <div className={`card ${session.kind} ${done ? 'done' : ''} ${onOpen ? 'clickable' : ''}`} onClick={onOpen}>
       <div className="row between">

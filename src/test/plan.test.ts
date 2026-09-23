@@ -1,7 +1,7 @@
 import { addDays, buildPlan, findSession, mondayOf, nextMonday, PHASES, TOTAL_WEEKS, weekForDate, weekMeta } from '../lib/plan';
 import { DEFAULT_PROFILE } from '../lib/storage';
 
-const profile = { ...DEFAULT_PROFILE, startDate: '2026-09-07' };
+const profile = { ...DEFAULT_PROFILE, startDate: '2026-09-07', race: null };
 
 describe('dates', () => {
   it('snaps to Monday', () => {
@@ -118,5 +118,66 @@ describe('plan structure', () => {
   it('ends with a time trial', () => {
     const sat = plan.weeks[13].days[5].sessions[0];
     expect(sat.kind === 'run' && sat.type).toBe('time_trial');
+  });
+});
+
+describe('race inserted into the plan', () => {
+  // Real case: block started Mon 7 Sep 2026, Melbourne Marathon Sun 11 Oct 2026.
+  const raced = buildPlan({ ...profile, race: { name: 'Melbourne Marathon', date: '2026-10-11' } });
+
+  it('adds 3 prep weeks after the pre-race weeks and keeps the full 14-week block', () => {
+    expect(raced.weeks).toHaveLength(2 + 3 + 14);
+    expect(raced.weeks[0].phase.key).toBe('recovery');
+    expect(raced.weeks[1].phase.key).toBe('recovery');
+    expect(raced.weeks[2].phase.key).toBe('raceprep');
+    expect(raced.weeks[4].phase.key).toBe('raceprep');
+    expect(raced.weeks[5].phase.key).toBe('recovery');
+    expect(raced.weeks[5].blockWeek).toBe(1);
+    expect(raced.weeks[18].blockWeek).toBe(14);
+    expect(raced.weeks[18].isDeload).toBe(true);
+  });
+
+  it('puts the race on race day and tapers into it', () => {
+    const raceWeek = raced.weeks[4];
+    expect(raceWeek.days[6].date).toBe('2026-10-11');
+    const sun = raceWeek.days[6].sessions[0];
+    expect(sun.kind === 'run' && sun.type).toBe('race');
+    expect(sun.kind === 'run' && sun.distanceKm).toBe(42.2);
+    // no lifting after Monday of race week
+    expect(raceWeek.days[2].sessions[0].kind).toBe('rest');
+    expect(raceWeek.days[4].sessions[0].kind).toBe('rest');
+    // one 22 km long run three weeks out
+    const long = raced.weeks[2].days[5].sessions[0];
+    expect(long.kind === 'run' && long.distanceKm).toBe(22);
+  });
+
+  it('keeps pre-race week session ids and content identical to the plain plan', () => {
+    const plain = buildPlan(profile);
+    for (const w of [0, 1]) {
+      const a = plain.weeks[w].days.flatMap((d) => d.sessions.map((s) => s.id + ':' + s.title));
+      const b = raced.weeks[w].days.flatMap((d) => d.sessions.map((s) => s.id + ':' + s.title));
+      expect(b).toEqual(a);
+    }
+  });
+
+  it('eases the first post-race week', () => {
+    const post = raced.weeks[5];
+    expect(post.days[0].sessions[0].kind).toBe('rest');
+    const tue = post.days[1].sessions[0];
+    expect(tue.kind === 'run' && tue.distanceKm).toBe(0);
+    expect(post.targetKm).toBeLessThan(15);
+  });
+
+  it('ignores a race dated before the plan start', () => {
+    const p = buildPlan({ ...profile, race: { name: 'Old', date: '2026-01-01' } });
+    expect(p.weeks).toHaveLength(14);
+  });
+
+  it('truncates prep when the race is within two weeks of the start', () => {
+    const p = buildPlan({ ...profile, race: { name: 'Soon', date: '2026-09-13' } });
+    expect(p.weeks[0].phase.key).toBe('raceprep');
+    expect(p.weeks[0].phaseWeek).toBe(3);
+    expect(p.weeks[0].days[6].sessions[0].kind === 'run' && p.weeks[0].days[6].sessions[0].type).toBe('race');
+    expect(p.weeks).toHaveLength(1 + 14);
   });
 });

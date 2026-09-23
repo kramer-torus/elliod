@@ -56,6 +56,16 @@ export const PHASES: Phase[] = [
 
 export const TOTAL_WEEKS = PHASES.reduce((s, p) => s + p.weeks, 0);
 
+export const RACE_PREP_PHASE: Phase = {
+  key: 'raceprep',
+  name: 'Race prep',
+  weeks: 3,
+  goal: 'Get to the start line fresh on the fitness you already have. One long run, a sharpening week, a taper.',
+  running: 'Easy runs genuinely easy (slow end of the easy zone). One 22 km long run three weeks out, marathon-pace segments the week after, then a short taper.',
+  lifting: 'Upper sessions continue. Lower body goes light the week before race week and stops in race week. Nothing in the last five days.',
+  nutrition: 'No deficit at all. Eat at maintenance, then carb-load Thursday to Saturday of race week (8–10 g carbs per kg). The cut resumes after the post-race recovery weeks.',
+};
+
 /* ---------- date helpers ---------- */
 
 export function toISODate(d: Date): string {
@@ -115,6 +125,41 @@ export function weekMeta(weekIndex: number): WeekMeta {
   return { phase: last, phaseWeek: last.weeks, isDeload: true };
 }
 
+/* ---------- schedule (race-aware) ---------- */
+
+export type WeekSlot =
+  | { kind: 'block'; blockWeek: number; postRace: boolean }
+  | { kind: 'prerace'; preWeek: number }
+  | { kind: 'prep'; prepWeek: 1 | 2 | 3 };
+
+/** Number of whole weeks between two Mondays. */
+const weeksBetween = (fromMonday: string, toMonday: string) =>
+  Math.round((parseISODate(toMonday).getTime() - parseISODate(fromMonday).getTime()) / (7 * 86400000));
+
+/**
+ * Lay out the plan as week slots. Without a race: 14 block weeks. With one:
+ * any weeks before the prep window are easy pre-race weeks, the three weeks
+ * ending on race week are prep, and the full block follows from the next Monday.
+ */
+export function buildSchedule(profile: Profile): WeekSlot[] {
+  const start = mondayOf(profile.startDate);
+  const race = profile.race;
+  if (!race || race.date < start) {
+    return Array.from({ length: TOTAL_WEEKS }, (_, i) => ({ kind: 'block', blockWeek: i + 1, postRace: false }));
+  }
+  const raceWeek = weeksBetween(start, mondayOf(race.date)) + 1; // 1-based
+  const prepStart = Math.max(1, raceWeek - 2);
+  const slots: WeekSlot[] = [];
+  for (let w = 1; w < prepStart; w++) slots.push({ kind: 'prerace', preWeek: w });
+  for (let w = prepStart; w <= raceWeek; w++) {
+    // If the race is within two weeks of the start, drop the earliest prep templates.
+    const prepWeek = (3 - (raceWeek - w)) as 1 | 2 | 3;
+    slots.push({ kind: 'prep', prepWeek });
+  }
+  for (let b = 1; b <= TOTAL_WEEKS; b++) slots.push({ kind: 'block', blockWeek: b, postRace: b === 1 });
+  return slots;
+}
+
 /* ---------- lifting ---------- */
 
 interface Scheme {
@@ -124,7 +169,8 @@ interface Scheme {
   rpe: number;
 }
 
-function schemeFor(role: Exercise['role'], phase: PhaseKey, isDeload: boolean, base: ExerciseDef['base']): Scheme {
+function schemeFor(role: Exercise['role'], phaseIn: PhaseKey, isDeload: boolean, base: ExerciseDef['base']): Scheme {
+  const phase: Exclude<PhaseKey, 'raceprep'> = phaseIn === 'raceprep' ? 'foundation' : phaseIn;
   let s: Scheme;
   if (role === 'main') {
     switch (phase) {
@@ -209,11 +255,18 @@ const LIFT_TEMPLATES: Record<LiftTemplate, { title: string; subtitle: string; de
   },
 };
 
-function liftSession(id: string, template: LiftTemplate, phase: PhaseKey, isDeload: boolean, weekIndex: number): LiftSession {
+function liftSession(
+  id: string,
+  template: LiftTemplate,
+  phase: PhaseKey,
+  isDeload: boolean,
+  opts: { testWeek?: boolean; note?: string } = {},
+): LiftSession {
   const t = LIFT_TEMPLATES[template];
   let description = t.description;
   if (phase === 'recovery') description += ' This phase: two sets per exercise, RPE 6, find your starting weights.';
-  if (isDeload && weekIndex === TOTAL_WEEKS) {
+  if (opts.note) description += ` ${opts.note}`;
+  if (isDeload && opts.testWeek) {
     description += ' TEST WEEK: on the main lift, after warm-up sets, take your last working weight for as many clean reps as possible (stop 1–2 short of failure).';
   } else if (isDeload) {
     description += ' Deload: one fewer set, two RPE points lighter. Move well, leave the gym fresh.';
@@ -345,6 +398,92 @@ function timeTrial(): RunSpec {
   };
 }
 
+function longRunFastFinish(km: number, fastKm: number): RunSpec {
+  return {
+    type: 'long_mp',
+    title: `Long run ${km} km, last ${fastKm} km at MP`,
+    km,
+    description: `${km} km. Easy for ${km - fastKm} km, then ${fastKm} km at marathon pace to finish. Practise race-day breakfast and fuelling.`,
+    segments: [
+      { label: 'Easy', zone: 'easy', distanceKm: km - fastKm },
+      { label: 'Marathon pace', zone: 'marathon', distanceKm: fastKm },
+    ],
+  };
+}
+
+function mpReps(reps: number, km: number, totalKm: number): RunSpec {
+  return {
+    type: 'threshold',
+    title: `${reps} × ${km} km at MP`,
+    km: totalKm,
+    description: `2 km warm-up, ${reps} × ${km} km at marathon pace with 1 km easy between, 2 km cool-down. Controlled — this is rehearsal, not a workout.`,
+    segments: [
+      { label: 'Warm-up', zone: 'easy', distanceKm: 2 },
+      { label: 'Marathon pace', zone: 'marathon', reps, distanceKm: km, recovery: '1 km easy' },
+      { label: 'Cool-down', zone: 'easy', distanceKm: 2 },
+    ],
+  };
+}
+
+function mpTouches(totalKm: number): RunSpec {
+  return {
+    type: 'easy',
+    title: 'Easy + 6 × 1 min at MP',
+    km: totalKm,
+    description: `${totalKm} km easy with 6 × 1 min at marathon pace spread through the middle. Just enough to remember the rhythm.`,
+    segments: [
+      { label: 'Easy', zone: 'easy', distanceKm: totalKm - 1 },
+      { label: 'MP touches', zone: 'marathon', reps: 6, minutes: 1, recovery: '2 min easy' },
+    ],
+  };
+}
+
+function shakeout(km: number): RunSpec {
+  return {
+    type: 'recovery',
+    title: `Shakeout ${km} km`,
+    km,
+    description: `${km} km very easy with 4 relaxed strides. Lay out kit, pin the bib, early night.`,
+    segments: [{ label: 'Shakeout', zone: 'recovery', distanceKm: km }],
+  };
+}
+
+function raceRun(name: string, distanceKm: number): RunSpec {
+  return {
+    type: 'race',
+    title: name,
+    km: distanceKm,
+    description:
+      'Race day. First 10 km at or a few seconds slower than target pace, settle through halfway, and only decide whether to push from 32 km. Fuel from 45 min in. With a short build like this, patience early is what protects the last 10 km.',
+    segments: [{ label: 'Race', zone: 'marathon', distanceKm }],
+  };
+}
+
+/** Race-prep weeks: [Tue, Thu, Sat, Sun]. Week 3 is race week and Sunday is the race. */
+function runsForPrepWeek(prepWeek: 1 | 2 | 3, race: { name: string; distanceKm: number }): [RunSpec, RunSpec, RunSpec, RunSpec] {
+  switch (prepWeek) {
+    case 1:
+      return [easyRun(8), easyRun(8, true), longRunFastFinish(22, 5), recoveryRun(4)];
+    case 2:
+      return [mpReps(3, 2, 10), easyRun(8), longRunFastFinish(16, 8), recoveryRun(4)];
+    case 3:
+    default:
+      return [mpTouches(8), easyRun(5, true), shakeout(3), raceRun(race.name, race.distanceKm)];
+  }
+}
+
+/** First week after a marathon: the block's recovery week 1 with the early days cut back. */
+function runsForPostRaceWeek(): [RunSpec, RunSpec, RunSpec, RunSpec] {
+  const walk: RunSpec = {
+    type: 'recovery',
+    title: 'Walk 30–40 min',
+    km: 0,
+    description: 'Two days after the race: walk, no running. Log it as done when you have moved.',
+    segments: [],
+  };
+  return [walk, easyRun(4), easyRun(7), recoveryRun(4)];
+}
+
 /** Per-week running prescription: [Tuesday, Thursday, Saturday, optional Sunday]. */
 function runsForWeek(weekIndex: number): [RunSpec, RunSpec, RunSpec, RunSpec] {
   switch (weekIndex) {
@@ -428,23 +567,116 @@ const WEEK_FOCUS: Record<number, string> = {
 export function buildPlan(profile: Profile): Plan {
   const start = mondayOf(profile.startDate);
   const paces = computePaces(profile.marathonSeconds);
+  const schedule = buildSchedule(profile);
+  const race = profile.race ? { name: profile.race.name, distanceKm: profile.race.distanceKm ?? 42.2 } : null;
   const weeks: PlanWeek[] = [];
 
-  for (let w = 1; w <= TOTAL_WEEKS; w++) {
-    const meta = weekMeta(w);
-    const [tue, thu, sat, sun] = runsForWeek(w);
-    const lowerTemplate: LiftTemplate = w % 2 === 1 ? 'lowerA' : 'lowerB';
+  schedule.forEach((slot, i) => {
+    const w = i + 1;
     const id = (d: number, k: string) => `w${w}d${d}-${k}`;
+    let phase: Phase;
+    let phaseWeek: number;
+    let isDeload = false;
+    let blockWeek: number | undefined;
+    let runs: [RunSpec, RunSpec, RunSpec, RunSpec];
+    let byDay: Session[][];
+    let focus: string;
+    let sundayIsRace = false;
 
-    const byDay: Session[][] = [
-      [liftSession(id(0, 'upperA'), 'upperA', meta.phase.key, meta.isDeload, w)],
-      [runSession(id(1, 'run'), tue)],
-      [liftSession(id(2, lowerTemplate), lowerTemplate, meta.phase.key, meta.isDeload, w)],
-      [runSession(id(3, 'run'), thu)],
-      [liftSession(id(4, 'upperB'), 'upperB', meta.phase.key, meta.isDeload, w)],
-      [runSession(id(5, 'run'), sat)],
-      profile.optionalRun ? [runSession(id(6, 'run'), sun, true)] : [restSession(id(6, 'rest'))],
-    ];
+    if (slot.kind === 'prep' && race) {
+      phase = RACE_PREP_PHASE;
+      phaseWeek = slot.prepWeek;
+      isDeload = slot.prepWeek === 3;
+      runs = runsForPrepWeek(slot.prepWeek, race);
+      sundayIsRace = slot.prepWeek === 3;
+      const pk: PhaseKey = 'raceprep';
+      const lowerTemplate: LiftTemplate = w % 2 === 1 ? 'lowerA' : 'lowerB';
+      if (slot.prepWeek === 1) {
+        byDay = [
+          [liftSession(id(0, 'upperA'), 'upperA', pk, false)],
+          [runSession(id(1, 'run'), runs[0])],
+          [liftSession(id(2, lowerTemplate), lowerTemplate, pk, false, { note: 'Last full lower session before the race.' })],
+          [runSession(id(3, 'run'), runs[1])],
+          [liftSession(id(4, 'upperB'), 'upperB', pk, false)],
+          [runSession(id(5, 'run'), runs[2])],
+          [restSession(id(6, 'rest'))],
+        ];
+        focus = 'Race prep 1. Easy runs slow, one proper long run Saturday. No deficit from today.';
+      } else if (slot.prepWeek === 2) {
+        byDay = [
+          [liftSession(id(0, 'upperA'), 'upperA', pk, false)],
+          [runSession(id(1, 'run'), runs[0])],
+          [liftSession(id(2, lowerTemplate), lowerTemplate, 'recovery', false, { note: 'Light week: two sets, RPE 6, nothing heavy on the legs.' })],
+          [runSession(id(3, 'run'), runs[1])],
+          [liftSession(id(4, 'upperB'), 'upperB', pk, false)],
+          [runSession(id(5, 'run'), runs[2])],
+          [restSession(id(6, 'rest'))],
+        ];
+        focus = 'Race prep 2. Marathon-pace rehearsal Tuesday and Saturday. Legs light in the gym.';
+      } else {
+        byDay = [
+          [liftSession(id(0, 'upperA'), 'upperA', pk, true, { note: 'Race week: light upper only, then nothing until after the race.' })],
+          [runSession(id(1, 'run'), runs[0])],
+          [restSession(id(2, 'rest'))],
+          [runSession(id(3, 'run'), runs[1])],
+          [restSession(id(4, 'rest'))],
+          [runSession(id(5, 'run'), runs[2])],
+          [runSession(id(6, 'run'), runs[3])],
+        ];
+        focus = `Race week. Carb-load Thu–Sat, sleep, and run ${race.name} patiently on Sunday.`;
+      }
+    } else if (slot.kind === 'prerace') {
+      // Easy base weeks before the prep window: same content as the block's recovery weeks.
+      phase = PHASES[0];
+      phaseWeek = slot.preWeek;
+      blockWeek = undefined;
+      runs = runsForWeek(Math.min(2, slot.preWeek));
+      const lowerTemplate: LiftTemplate = w % 2 === 1 ? 'lowerA' : 'lowerB';
+      byDay = [
+        [liftSession(id(0, 'upperA'), 'upperA', 'recovery', false)],
+        [runSession(id(1, 'run'), runs[0])],
+        [liftSession(id(2, lowerTemplate), lowerTemplate, 'recovery', false)],
+        [runSession(id(3, 'run'), runs[1])],
+        [liftSession(id(4, 'upperB'), 'upperB', 'recovery', false)],
+        [runSession(id(5, 'run'), runs[2])],
+        profile.optionalRun ? [runSession(id(6, 'run'), runs[3], true)] : [restSession(id(6, 'rest'))],
+      ];
+      focus = WEEK_FOCUS[Math.min(2, slot.preWeek)] ?? '';
+    } else {
+      const b = slot.kind === 'block' ? slot.blockWeek : 1;
+      const postRace = slot.kind === 'block' && slot.postRace;
+      const meta = weekMeta(b);
+      phase = meta.phase;
+      phaseWeek = meta.phaseWeek;
+      isDeload = meta.isDeload;
+      blockWeek = b;
+      runs = postRace ? runsForPostRaceWeek() : runsForWeek(b);
+      const lowerTemplate: LiftTemplate = b % 2 === 1 ? 'lowerA' : 'lowerB';
+      const testWeek = b === TOTAL_WEEKS;
+      if (postRace) {
+        byDay = [
+          [restSession(id(0, 'rest'))],
+          [runSession(id(1, 'run'), runs[0])],
+          [liftSession(id(2, 'upperA'), 'upperA', 'recovery', false, { note: 'Three days post-race: upper body only, two easy sets.' })],
+          [runSession(id(3, 'run'), runs[1])],
+          [liftSession(id(4, lowerTemplate), lowerTemplate, 'recovery', false, { note: 'First legs session after the race. Very light, technique only.' })],
+          [runSession(id(5, 'run'), runs[2])],
+          profile.optionalRun ? [runSession(id(6, 'run'), runs[3], true)] : [restSession(id(6, 'rest'))],
+        ];
+        focus = 'Post-race recovery. Walk, sleep, eat at maintenance. The block restarts from here.';
+      } else {
+        byDay = [
+          [liftSession(id(0, 'upperA'), 'upperA', phase.key, isDeload, { testWeek })],
+          [runSession(id(1, 'run'), runs[0])],
+          [liftSession(id(2, lowerTemplate), lowerTemplate, phase.key, isDeload, { testWeek })],
+          [runSession(id(3, 'run'), runs[1])],
+          [liftSession(id(4, 'upperB'), 'upperB', phase.key, isDeload, { testWeek })],
+          [runSession(id(5, 'run'), runs[2])],
+          profile.optionalRun ? [runSession(id(6, 'run'), runs[3], true)] : [restSession(id(6, 'rest'))],
+        ];
+        focus = WEEK_FOCUS[b] ?? '';
+      }
+    }
 
     const days: PlanDay[] = byDay.map((sessions, d) => ({
       date: addDays(start, (w - 1) * 7 + d),
@@ -452,18 +684,11 @@ export function buildPlan(profile: Profile): Plan {
       sessions,
     }));
 
-    const targetKm = tue.km + thu.km + sat.km + (profile.optionalRun ? sun.km : 0);
+    const sundayKm = sundayIsRace ? runs[3].km : profile.optionalRun && slot.kind !== 'prep' ? runs[3].km : 0;
+    const targetKm = runs[0].km + runs[1].km + runs[2].km + sundayKm;
 
-    weeks.push({
-      index: w,
-      phase: meta.phase,
-      phaseWeek: meta.phaseWeek,
-      isDeload: meta.isDeload,
-      days,
-      targetKm,
-      focus: WEEK_FOCUS[w] ?? '',
-    });
-  }
+    weeks.push({ index: w, phase, phaseWeek, isDeload, blockWeek, days, targetKm, focus });
+  });
 
   return { weeks, paces };
 }

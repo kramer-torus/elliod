@@ -12,6 +12,20 @@ export interface Profile {
   dailyDeficitKcal: number;
   /** Include the optional Sunday recovery run. */
   optionalRun: boolean;
+  /**
+   * An optional marathon inside the plan window. The three weeks ending on
+   * race day become a race-prep phase and the hybrid block restarts, with its
+   * recovery phase, the day after.
+   */
+  race?: RaceEntry | null;
+}
+
+export interface RaceEntry {
+  name: string;
+  /** ISO date of race day (any weekday). */
+  date: string;
+  /** Distance in km. Defaults to 42.2. */
+  distanceKm?: number;
 }
 
 export type PaceZone = 'recovery' | 'easy' | 'marathon' | 'threshold' | 'interval' | 'repetition';
@@ -31,7 +45,8 @@ export type RunType =
   | 'intervals'
   | 'long'
   | 'long_mp'
-  | 'time_trial';
+  | 'time_trial'
+  | 'race';
 
 export interface RunSegment {
   label: string;
@@ -98,7 +113,7 @@ export interface RestSession {
 
 export type Session = RunSession | LiftSession | RestSession;
 
-export type PhaseKey = 'recovery' | 'foundation' | 'build' | 'consolidate';
+export type PhaseKey = 'recovery' | 'foundation' | 'build' | 'consolidate' | 'raceprep';
 
 export interface Phase {
   key: PhaseKey;
@@ -122,6 +137,8 @@ export interface PlanWeek {
   phase: Phase;
   phaseWeek: number; // 1-based within phase
   isDeload: boolean;
+  /** Week of the hybrid block (1–14), undefined for race-prep weeks. */
+  blockWeek?: number;
   days: PlanDay[];
   targetKm: number;
   focus: string;

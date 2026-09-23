@@ -20,6 +20,7 @@ export default function PlanView({ week: routeWeek, navigate }: { week?: number;
           <button
             key={w.index}
             className={`${w.index === week.index ? 'active' : ''} ${w.isDeload ? 'deload' : ''} ${w.index === currentWeek ? 'current' : ''}`}
+            title={w.phase.key === 'raceprep' ? 'Race prep' : w.phase.name}
             onClick={() => setSelected(w.index)}
           >
             W{w.index}
@@ -31,7 +32,8 @@ export default function PlanView({ week: routeWeek, navigate }: { week?: number;
         <div className="row between wrap">
           <div className="row wrap" style={{ gap: '.4rem' }}>
             <span className="pill phase">{week.phase.name} · {week.phaseWeek}/{week.phase.weeks}</span>
-            {week.isDeload && <span className="pill deload">Deload</span>}
+            {week.blockWeek && <span className="pill rest">block {week.blockWeek}/14</span>}
+            {week.isDeload && week.phase.key !== 'raceprep' && <span className="pill deload">Deload</span>}
           </div>
           <b className="mono">{week.targetKm} km planned</b>
         </div>

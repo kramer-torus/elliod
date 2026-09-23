@@ -1,11 +1,12 @@
 import { useApp } from '../state';
-import { PHASES } from '../lib/plan';
+import { PHASES, RACE_PREP_PHASE } from '../lib/plan';
 import { DAILY_POSTURE } from '../lib/exercises';
 import { formatPaceRange } from '../lib/vdot';
 
 export default function Guide() {
-  const { plan } = useApp();
+  const { plan, state } = useApp();
   const z = plan?.paces.zones;
+  const race = state.profile?.race;
   return (
     <div className="guide">
       <h1>The plan</h1>
@@ -40,6 +41,24 @@ export default function Guide() {
       <p>
         Hard days are clustered so easy days stay easy. Tuesday's quality run sits right before Wednesday's heavy legs on purpose: your legs are already fatigued, so the fatigue lands on one block of days and you go into Saturday's long run with two lighter days behind you.
       </p>
+
+      {race && (
+        <>
+          <h2>{race.name}: the detour</h2>
+          <div className="card">
+            <h3>{RACE_PREP_PHASE.name} <span className="muted" style={{ fontWeight: 400 }}>· {RACE_PREP_PHASE.weeks} weeks ending {race.date}</span></h3>
+            <p>{RACE_PREP_PHASE.goal}</p>
+            <ul>
+              <li><b>Running.</b> {RACE_PREP_PHASE.running}</li>
+              <li><b>Lifting.</b> {RACE_PREP_PHASE.lifting}</li>
+              <li><b>Nutrition.</b> {RACE_PREP_PHASE.nutrition}</li>
+            </ul>
+          </div>
+          <div className="callout">
+            This race sits on a short build. Expect a time near your last marathon, not under it. Run the first 30 km at or slightly slower than last time; with this preparation the race is won by not losing it early. The hybrid block restarts the day after, beginning with two recovery weeks at maintenance.
+          </div>
+        </>
+      )}
 
       <h2>Phases</h2>
       {PHASES.map((p) => (

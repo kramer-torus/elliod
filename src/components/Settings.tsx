@@ -24,12 +24,16 @@ export function ProfileForm({
     targetWeightKg: initial.targetWeightKg.toString(),
     dailyDeficitKcal: initial.dailyDeficitKcal.toString(),
     optionalRun: initial.optionalRun,
+    raceOn: !!initial.race,
+    raceName: initial.race?.name ?? 'Marathon',
+    raceDate: initial.race?.date ?? '',
   });
   const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const marathonSeconds = parseTime(form.marathon);
   const paces = marathonSeconds ? computePaces(marathonSeconds) : null;
   const snapped = form.startDate ? mondayOf(form.startDate) : '';
-  const valid = marathonSeconds !== null && Number(form.heightCm) > 100 && Number(form.weightKg) > 30 && Number(form.age) > 10 && !!form.startDate;
+  const raceValid = !form.raceOn || (!!form.raceDate && form.raceDate >= snapped && !!form.raceName.trim());
+  const valid = marathonSeconds !== null && Number(form.heightCm) > 100 && Number(form.weightKg) > 30 && Number(form.age) > 10 && !!form.startDate && raceValid;
 
   const submit = () => {
     if (!valid || marathonSeconds === null) return;
@@ -43,6 +47,7 @@ export function ProfileForm({
       targetWeightKg: Number(form.targetWeightKg) || Number(form.weightKg),
       dailyDeficitKcal: Math.max(0, Math.min(800, Number(form.dailyDeficitKcal) || 0)),
       optionalRun: form.optionalRun,
+      race: form.raceOn ? { name: form.raceName.trim(), date: form.raceDate, distanceKm: 42.2 } : null,
     });
   };
 
@@ -79,6 +84,23 @@ export function ProfileForm({
             <span>Add optional 4–6 km</span>
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 0 }}>
+        <div className="row" style={{ marginBottom: form.raceOn ? '.6rem' : 0 }}>
+          <input type="checkbox" checked={form.raceOn} onChange={(e) => set('raceOn', e.target.checked)} />
+          <span><b>Marathon inside this plan</b><br /><small>Three prep weeks end on race day, then the block restarts with its recovery phase.</small></span>
+        </div>
+        {form.raceOn && (
+          <div className="grid2">
+            <div><label>Race</label><input value={form.raceName} onChange={(e) => set('raceName', e.target.value)} /></div>
+            <div>
+              <label>Race day</label>
+              <input type="date" value={form.raceDate} onChange={(e) => set('raceDate', e.target.value)} />
+              {form.raceDate && form.raceDate < snapped && <small style={{ color: 'var(--bad)' }}>Race day must be after the plan start.</small>}
+            </div>
+          </div>
+        )}
       </div>
 
       {paces && (
