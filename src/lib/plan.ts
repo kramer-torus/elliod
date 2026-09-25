@@ -449,18 +449,72 @@ function shakeout(km: number): RunSpec {
 }
 
 function raceRun(name: string, distanceKm: number): RunSpec {
+  const half = distanceKm < 30;
   return {
     type: 'race',
     title: name,
     km: distanceKm,
-    description:
-      'Race day. First 10 km at or a few seconds slower than target pace, settle through halfway, and only decide whether to push from 32 km. Fuel from 45 min in. With a short build like this, patience early is what protects the last 10 km.',
-    segments: [{ label: 'Race', zone: 'marathon', distanceKm }],
+    description: half
+      ? 'Race day. First 5 km at the slow end of half-marathon pace, hold to 15 km, then run the last 6 km as hard as you can sustain. One gel at 40 min is enough. Even splits beat a fast start here.'
+      : 'Race day. First 10 km at or a few seconds slower than target pace, settle through halfway, and only decide whether to push from 32 km. Fuel from 45 min in. With a short build like this, patience early is what protects the last 10 km.',
+    segments: [{ label: 'Race', zone: half ? 'threshold' : 'marathon', distanceKm }],
+  };
+}
+
+function hmReps(reps: number, km: number, totalKm: number): RunSpec {
+  return {
+    type: 'threshold',
+    title: `${reps} × ${km} km at half-marathon pace`,
+    km: totalKm,
+    description: `2 km warm-up, ${reps} × ${km} km at half-marathon pace with 3 min jog between, 2 km cool-down. This is the fitness test: the pace you hold here comfortably is your race pace. Try to run the middle rep faster and note how it felt.`,
+    segments: [
+      { label: 'Warm-up', zone: 'easy', distanceKm: 2 },
+      { label: 'Half-marathon pace', zone: 'threshold', reps, distanceKm: km, recovery: '3 min jog' },
+      { label: 'Cool-down', zone: 'easy', distanceKm: 2 },
+    ],
+  };
+}
+
+function longRunHmFinish(km: number, fastKm: number): RunSpec {
+  return {
+    type: 'long_mp',
+    title: `Long run ${km} km, last ${fastKm} km at HM pace`,
+    km,
+    description: `${km} km. Easy for ${km - fastKm} km, then ${fastKm} km at half-marathon pace to finish. Practise the race-morning routine.`,
+    segments: [
+      { label: 'Easy', zone: 'easy', distanceKm: km - fastKm },
+      { label: 'Half-marathon pace', zone: 'threshold', distanceKm: fastKm },
+    ],
+  };
+}
+
+function hmTouches(reps: number, totalKm: number): RunSpec {
+  return {
+    type: 'easy',
+    title: `Easy + ${reps} × 1 km at HM pace`,
+    km: totalKm,
+    description: `${totalKm} km: 2 km easy, ${reps} × 1 km at half-marathon pace with 2 min jog, easy home. Sharp, not tiring.`,
+    segments: [
+      { label: 'Warm-up', zone: 'easy', distanceKm: 2 },
+      { label: 'HM pace', zone: 'threshold', reps, distanceKm: 1, recovery: '2 min jog' },
+      { label: 'Cool-down', zone: 'easy', distanceKm: totalKm - 2 - reps },
+    ],
   };
 }
 
 /** Race-prep weeks: [Tue, Thu, Sat, Sun]. Week 3 is race week and Sunday is the race. */
 function runsForPrepWeek(prepWeek: 1 | 2 | 3, race: { name: string; distanceKm: number }): [RunSpec, RunSpec, RunSpec, RunSpec] {
+  if (race.distanceKm < 30) {
+    switch (prepWeek) {
+      case 1:
+        return [easyRun(8), easyRun(8, true), longRunFastFinish(18, 4), recoveryRun(4)];
+      case 2:
+        return [hmReps(3, 2, 11), easyRun(8, true), longRunHmFinish(14, 6), recoveryRun(4)];
+      case 3:
+      default:
+        return [hmTouches(4, 8), easyRun(5, true), shakeout(3), raceRun(race.name, race.distanceKm)];
+    }
+  }
   switch (prepWeek) {
     case 1:
       return [easyRun(8), easyRun(8, true), longRunFastFinish(22, 5), recoveryRun(4)];
@@ -612,7 +666,9 @@ export function buildPlan(profile: Profile): Plan {
           [runSession(id(5, 'run'), runs[2])],
           [restSession(id(6, 'rest'))],
         ];
-        focus = 'Race prep 2. Marathon-pace rehearsal Tuesday and Saturday. Legs light in the gym.';
+        focus = race.distanceKm < 30
+          ? 'Race prep 2. Tuesday is the fitness test at half-marathon pace. Legs light in the gym.'
+          : 'Race prep 2. Marathon-pace rehearsal Tuesday and Saturday. Legs light in the gym.';
       } else {
         byDay = [
           [liftSession(id(0, 'upperA'), 'upperA', pk, true, { note: 'Race week: light upper only, then nothing until after the race.' })],
@@ -623,7 +679,9 @@ export function buildPlan(profile: Profile): Plan {
           [runSession(id(5, 'run'), runs[2])],
           [runSession(id(6, 'run'), runs[3])],
         ];
-        focus = `Race week. Carb-load Thu–Sat, sleep, and run ${race.name} patiently on Sunday.`;
+        focus = race.distanceKm < 30
+          ? `Race week. Normal eating with extra carbs Friday and Saturday, sleep, and run ${race.name} on even splits Sunday.`
+          : `Race week. Carb-load Thu–Sat, sleep, and run ${race.name} patiently on Sunday.`;
       }
     } else if (slot.kind === 'prerace') {
       // Easy base weeks before the prep window: same content as the block's recovery weeks.

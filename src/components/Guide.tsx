@@ -55,7 +55,10 @@ export default function Guide() {
             </ul>
           </div>
           <div className="callout">
-            This race sits on a short build. Expect a time near your last marathon, not under it. Run the first 30 km at or slightly slower than last time; with this preparation the race is won by not losing it early. The hybrid block restarts the day after, beginning with two recovery weeks at maintenance.
+            {(race.distanceKm ?? 42.2) < 30
+              ? 'This half sits on marathon fitness with no speed work behind it. Your marathon predicts about 1:37; a good day is 1:34–1:37. Sub-1:30 needs 4:16/km, faster than your current threshold pace, and belongs to a dedicated block next year. Race on even splits at the pace Tuesday of prep week 2 showed you can hold.'
+              : 'This race sits on a short build. Expect a time near your last marathon, not under it. Run the first 30 km at or slightly slower than last time; with this preparation the race is won by not losing it early.'}
+            {' '}The hybrid block restarts the day after, beginning with two recovery weeks at maintenance.
           </div>
         </>
       )}

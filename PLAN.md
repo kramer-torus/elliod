@@ -25,22 +25,25 @@ sustainable dose, not a maximal one.
 - Weeks 1–2 are recovery, not optional. Marathon muscle damage outlasts the
   feeling of being recovered by two to three weeks.
 
-## Race detour (added 23 Sep 2026)
+## Race detour (added 23 Sep 2026, switched to the half 25 Sep)
 
-Melbourne Marathon on Sunday 11 October, six weeks after Sydney, was accepted.
+Melbourne Half Marathon on Sunday 11 October, six weeks after Sydney.
+Stated target sub-1:30 (4:16/km); the 3:23 marathon predicts 1:37:37 and
+current threshold pace is 4:31–4:39/km, so the realistic range is 1:34–1:37.
+Sub-1:30 is a target for a dedicated block in 2027, not this race.
 The app treats a race as an insert: the three weeks ending on race day become
 a race-prep phase and the full 14-week block restarts the next Monday
 (26 October), so it now finishes 17 January 2027.
 
 | Week | Running | Lifting | Nutrition |
 | --- | --- | --- | --- |
-| 21–27 Sep | Tue 8 easy, Thu 8 + strides, Sat 22 km with last 5 at MP | All three sessions, last full lower on Wed | Maintenance from now |
-| 28 Sep–4 Oct | Tue 3 × 2 km at MP, Thu 8 easy, Sat 16 km with 8 at MP | Upper normal, lower light (2 sets, RPE 6) | Maintenance |
-| 5–11 Oct | Tue 8 with 6 × 1 min MP, Thu 5 + strides, Sat 3 km shakeout, **Sun race** | Light upper Mon only | Carb-load Thu–Sat |
+| 21–27 Sep | Tue 8 easy, Thu 8 + strides, Sat 18 km with last 4 at MP | All three sessions, last full lower on Wed | Maintenance from now |
+| 28 Sep–4 Oct | Tue 3 × 2 km at HM pace (the fitness test), Thu 8 + strides, Sat 14 km with 6 at HM pace | Upper normal, lower light (2 sets, RPE 6) | Maintenance |
+| 5–11 Oct | Tue 8 with 4 × 1 km HM pace, Thu 5 + strides, Sat 3 km shakeout, **Sun race** | Light upper Mon only | Extra carbs Fri–Sat |
 | 12–18 Oct | Mon rest, Tue walk, Thu 4, Sat 7 | Upper Wed, light lower Fri, 2 sets RPE 6 | Maintenance |
 
-Expectation: a time near 3:23, not under it. First 30 km at or slightly slower
-than Sydney pace. The easy runs since Sydney were all run at marathon pace;
+Race plan: even splits at the pace Tuesday 29 Sep showed is comfortable for
+3 × 2 km, push from 15 km. The easy runs since Sydney were all run at marathon pace;
 the prep weeks only work if easy means 5:15/km or slower.
 
 ## Weekly template

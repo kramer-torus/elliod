@@ -27,6 +27,7 @@ export function ProfileForm({
     raceOn: !!initial.race,
     raceName: initial.race?.name ?? 'Marathon',
     raceDate: initial.race?.date ?? '',
+    raceDistance: String(initial.race?.distanceKm ?? 21.1),
   });
   const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const marathonSeconds = parseTime(form.marathon);
@@ -47,7 +48,7 @@ export function ProfileForm({
       targetWeightKg: Number(form.targetWeightKg) || Number(form.weightKg),
       dailyDeficitKcal: Math.max(0, Math.min(800, Number(form.dailyDeficitKcal) || 0)),
       optionalRun: form.optionalRun,
-      race: form.raceOn ? { name: form.raceName.trim(), date: form.raceDate, distanceKm: 42.2 } : null,
+      race: form.raceOn ? { name: form.raceName.trim(), date: form.raceDate, distanceKm: Number(form.raceDistance) } : null,
     });
   };
 
@@ -94,6 +95,13 @@ export function ProfileForm({
         {form.raceOn && (
           <div className="grid2">
             <div><label>Race</label><input value={form.raceName} onChange={(e) => set('raceName', e.target.value)} /></div>
+            <div>
+              <label>Distance</label>
+              <select value={form.raceDistance} onChange={(e) => set('raceDistance', e.target.value)}>
+                <option value="21.1">Half marathon</option>
+                <option value="42.2">Marathon</option>
+              </select>
+            </div>
             <div>
               <label>Race day</label>
               <input type="date" value={form.raceDate} onChange={(e) => set('raceDate', e.target.value)} />

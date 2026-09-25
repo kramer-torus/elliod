@@ -168,6 +168,18 @@ describe('race inserted into the plan', () => {
     expect(post.targetKm).toBeLessThan(15);
   });
 
+  it('builds half-marathon prep when the distance is 21.1', () => {
+    const half = buildPlan({ ...profile, race: { name: 'Melbourne Half', date: '2026-10-11', distanceKm: 21.1 } });
+    const long = half.weeks[2].days[5].sessions[0];
+    expect(long.kind === 'run' && long.distanceKm).toBe(18);
+    const tue = half.weeks[3].days[1].sessions[0];
+    expect(tue.kind === 'run' && tue.title).toContain('half-marathon pace');
+    const race = half.weeks[4].days[6].sessions[0];
+    expect(race.kind === 'run' && race.distanceKm).toBe(21.1);
+    expect(race.kind === 'run' && race.segments[0].zone).toBe('threshold');
+    expect(half.weeks).toHaveLength(19);
+  });
+
   it('ignores a race dated before the plan start', () => {
     const p = buildPlan({ ...profile, race: { name: 'Old', date: '2026-01-01' } });
     expect(p.weeks).toHaveLength(14);

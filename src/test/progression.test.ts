@@ -95,7 +95,9 @@ describe('race-prep nutrition and migration', () => {
   });
   it('fills a missing race key from defaults but respects an explicit null', () => {
     const { race: _r, ...noRace } = DEFAULT_PROFILE;
-    expect(migrate({ profile: noRace as typeof DEFAULT_PROFILE }).profile?.race?.name).toBe('Melbourne Marathon');
+    expect(migrate({ profile: noRace as typeof DEFAULT_PROFILE }).profile?.race?.name).toBe('Melbourne Half Marathon');
+    const stale = migrate({ profile: { ...DEFAULT_PROFILE, race: { name: 'Melbourne Marathon', date: '2026-10-11', distanceKm: 42.2 } } });
+    expect(stale.profile?.race?.distanceKm).toBe(21.1);
     expect(migrate({ profile: { ...DEFAULT_PROFILE, race: null } }).profile?.race).toBeNull();
   });
 });

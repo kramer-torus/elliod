@@ -14,7 +14,7 @@ export const DEFAULT_PROFILE: Profile = {
   dailyDeficitKcal: 400,
   optionalRun: false,
   // Applies to installs that have not yet stored a race decision (migrate() fills missing keys).
-  race: { name: 'Melbourne Marathon', date: '2026-10-11', distanceKm: 42.2 },
+  race: { name: 'Melbourne Half Marathon', date: '2026-10-11', distanceKm: 21.1 },
 };
 
 export const EMPTY_STATE: AppState = { version: 1, profile: null, logs: {}, weights: [] };
@@ -39,9 +39,14 @@ export function save(state: AppState): void {
 }
 
 export function migrate(parsed: Partial<AppState>): AppState {
+  let profile = parsed.profile ? { ...DEFAULT_PROFILE, ...parsed.profile } : null;
+  // One-off: the 11 Oct 2026 entry was stored as the full marathon before the switch to the half.
+  if (profile?.race && profile.race.date === '2026-10-11' && profile.race.name === 'Melbourne Marathon') {
+    profile = { ...profile, race: DEFAULT_PROFILE.race };
+  }
   return {
     version: 1,
-    profile: parsed.profile ? { ...DEFAULT_PROFILE, ...parsed.profile } : null,
+    profile,
     logs: parsed.logs ?? {},
     weights: Array.isArray(parsed.weights) ? parsed.weights : [],
   };
